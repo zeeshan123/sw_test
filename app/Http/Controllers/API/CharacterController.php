@@ -76,7 +76,12 @@ class CharacterController extends BaseController
             'id' => 'required',
             'name' => 'required',
             'url' => 'required',
-            'gender' => 'required'
+            'gender' => 'required',
+            'hair_color' => 'required',
+            'skin_color' => 'required',
+            'mass' => 'required',
+            'height' => 'required',
+            'homeworld' => 'required'
         ]);
    
         if($validator->fails()){
@@ -84,6 +89,8 @@ class CharacterController extends BaseController
         }
 
         $character = Character::find($request->id);
+
+       //dd($character);
         $character->name = $input['name'];
         $character->height = $input['height'];
         $character->mass = $input['mass'];
