@@ -38,7 +38,8 @@ class FetchSwData extends Command
 
     private function fetchPeople()
     {
-        $response = Http::get('https://swapi.dev/api/people');
+
+        $response = Http::get('https://swapi.py4e.com/api/people/');
 
         if ($response->successful()) {
             $data = $response->json();
@@ -65,63 +66,52 @@ class FetchSwData extends Command
      *
      * @return int
      */
-   public function handle()
+  
+    public function handle()
     {
+        try {
+            // Fetch data from SWAPI for Films
+            $response = Http::get('https://swapi.py4e.com/api/films');
+            $data = $response->json();
 
-        $response = Http::get('https://swapi.dev/api/films');
-        $data = $response->json();
-        foreach ($data['results'] as $item) {
-          Film::updateOrCreate(
-            [
-                'api_id' => Str::of(basename($item['url'])),
-                'title' => $item['title'],
-                'characters' => json_encode($item['characters']),
-                'url' => $item['url'],
-                'created_at' => Carbon::parse($item['created']),
-                'updated_at' => Carbon::parse($item['edited']),
-            ]);
-      }
-
-        // Fetch data from SWAPI
-        $response = Http::get('https://swapi.dev/api/people?page=2');
-        $data = $response->json();
-//dd($item['hair_color']);
-        // Store data in your database
-        foreach ($data['results'] as $item) {
-
-          $character =   Character::updateOrCreate(
-            [
-                'name' => $item['name'],
-                'api_id' => Str::of(basename($item['url'])),
-                'height' => is_numeric($item['height']) ? $item['height'] : null,
-                'mass' => is_numeric($item['mass']) ? $item['mass'] : null,
-                'born' => $item['birth_year'] != 'unknown' ? self::transformYear($item['birth_year']) : null,
-                'hair_color' => $item['hair_color'] ? $item['hair_color'] : null,
-                'skin_color' => $item['skin_color'],
-                'eye_color' => $item['eye_color'],
-                'gender' => $item['gender'],
-                'homeworld' => $item['homeworld'],
-                'films' => json_encode($item['films']),
-                'species' => json_encode($item['species']),
-                'starships' => json_encode($item['starships']),
-                'vehicles' => json_encode($item['vehicles']),
-                'created' => Carbon::parse($item['created']),
-                'edited' => Carbon::parse($item['edited']),
-                'url' => $item['url']
-            ],
-                // Add other fields as needed
-            );
-
-            // Make Association of Characters and Films
-           //dd($character->id);
-             foreach ($item['films'] as $item) {
-                $filmCharacter = new FilmCharacter();
-                $filmCharacter->character_id = $character->id;
-                $filmCharacter->film_id = basename($item);
-                $filmCharacter->save();       
+            // Store data in the database for Films
+            foreach ($data['results'] as $item) {
+                Film::updateOrCreate([
+                    'api_id' => Str::of(basename($item['url'])),
+                    'title' => $item['title'],
+                    'characters' => json_encode($item['characters']),
+                    'url' => $item['url'],
+                    'created_at' => Carbon::parse($item['created']),
+                    'updated_at' => Carbon::parse($item['edited']),
+                ]);
             }
 
-            $this->info('SWAPI data fetched and stored successfully.');
+            // Fetch data from SWAPI for People
+            $response = Http::get('https://swapi.py4e.com/api/people');
+            $data = $response->json();
+
+            // Store data in the database for People (Characters)
+            foreach ($data['results'] as $item) {
+                $character = Character::updateOrCreate([
+                    'name' => $item['name'],
+                    'api_id' => Str::of(basename($item['url'])),
+                    // ... (other fields)
+                ]);
+
+                // Make Association of Characters and Films
+                foreach ($item['films'] as $filmUrl) {
+                    $filmId = basename($filmUrl);
+                    $filmCharacter = new FilmCharacter();
+                    $filmCharacter->character_id = $character->id;
+                    $filmCharacter->film_id = $filmId;
+                    $filmCharacter->save();
+                }
+
+                $this->info('SWAPI data fetched and stored successfully.');
+            }
+        } catch (\Exception $e) {
+            $this->error('An error occurred: ' . $e->getMessage());
         }
+    
     }
 }
